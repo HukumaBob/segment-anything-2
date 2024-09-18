@@ -7,7 +7,7 @@ from sam2.build_sam import build_sam2_video_predictor
 
 # Устройство для вычислений
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Используем устройство: {device}")
+print(f"Use device: {device}")
 
 # Если CUDA доступен
 if device.type == "cuda":
@@ -70,13 +70,37 @@ ann_obj_id = 1
 clicked_points = []
 clicked_labels = []
 
+# Пороговое расстояние для удаления точки
+remove_threshold = 10.0
+
+# Функция для удаления точки, находящейся в пределах `remove_threshold` от клика
+def remove_point(ix, iy):
+    global clicked_points, clicked_labels
+    for i, (x, y) in enumerate(clicked_points):
+        dist = np.sqrt((ix - x)**2 + (iy - y)**2)
+        if dist < remove_threshold:
+            del clicked_points[i]
+            del clicked_labels[i]
+            print(f"Удалена точка: ({x}, {y})")
+            return True
+    return False
+
 # Функция для обработки кликов
 def onclick(event):
     ix, iy = event.xdata, event.ydata
     if ix is not None and iy is not None:
-        clicked_points.append([ix, iy])
-        clicked_labels.append(1)  # Отмечаем как положительный клик
-        print(f"Клик в точке: ({ix}, {iy})")
+        if event.button == 1:  # Левый клик
+            if event.key == 'control':  # Удерживается клавиша Ctrl
+                if not remove_point(ix, iy):
+                    print(f"Нет точек в радиусе {remove_threshold} для удаления")
+            else:
+                clicked_labels.append(1)  # Положительный клик
+                clicked_points.append([ix, iy])
+                print(f"Левый клик в точке: ({ix}, {iy})")
+        elif event.button == 3:  # Правый клик
+            clicked_labels.append(0)  # Отрицательный клик
+            clicked_points.append([ix, iy])
+            print(f"Правый клик в точке: ({ix}, {iy})")
         update_image()  # Обновляем изображение после клика
         update_prediction()  # Обновляем предсказание маски с новыми точками
 
